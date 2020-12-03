@@ -30,6 +30,25 @@ __all__ = ["classification_fairness",
            "flag_suspicious"]
 
 
+
+def get_report_labels(pred_type:str="binary"):
+    """ Returns a dictionary of category labels used by reporting functions
+
+    Args:
+        pred_type (b): number of classes in the prediction problem
+    """
+    #TODO: reference this function in the tutorial rather than using explicit names
+    valid_pred_types = ["binary", "multiclass", "regression"]
+    if pred_type not in valid_pred_types:
+        raise ValueError(f"pred_type must be one of {valid_pred_types}")
+    c_note = "" if pred_type == "binary" else " (Weighted Avg)"
+    report_labels = {'if_key': "Individual Fairness"
+                     'gf_label': "Group Fairness"
+                     'mp_label': f"Model Performance{c_note}"
+                     }
+    return report_labels
+
+
 def __format_fairtest_input(X, prtc_attr, y_true, y_pred, y_prob=None):
     """ Formats data for use by fairness reporting functions.
 
@@ -43,7 +62,6 @@ def __format_fairtest_input(X, prtc_attr, y_true, y_pred, y_prob=None):
             to None.
     Returns:
         Tuple containing formatted versions of all passed args.
-
     """
     __validate_report_inputs(X, prtc_attr, y_true, y_pred, y_prob)
 
@@ -97,7 +115,8 @@ def __format_fairtest_input(X, prtc_attr, y_true, y_pred, y_prob=None):
 
 def __binary_group_fairness_measures(X, prtc_attr, y_true, y_pred, y_prob=None,
                                      priv_grp=1):
-    """[summary]
+    """ Returns a dictionary containing group fairness measures specific
+        to binary classification problems
 
     Args:
         X (pandas DataFrame): Sample features
@@ -105,17 +124,16 @@ def __binary_group_fairness_measures(X, prtc_attr, y_true, y_pred, y_prob=None,
             (note: protected attribute may also be present in X)
         y_true (pandas DataFrame): Sample targets
         y_pred (pandas DataFrame): Sample target predictions
-        y_prob (pandas DataFrame, optional): Sample target probabilities. Defaults
-            to None.
-
-    Returns:
-        [type]: [description]
+        y_prob (pandas DataFrame, optional): Sample target probabilities.
+            Defaults to None.
+        priv_group (int): Specifies which label indicates the privileged
+                group. Defaults to 1.
     """
     pa_names = prtc_attr.columns.tolist()
     gf_vals = {}
-    gf_key = 'Group Fairness'
     gf_vals['Statistical Parity Difference'] = \
-        aif_mtrc.statistical_parity_difference(y_true, y_pred, prot_attr=pa_names)
+        aif_mtrc.statistical_parity_difference(y_true, y_pred,
+                                               prot_attr=pa_names)
     gf_vals['Disparate Impact Ratio'] = \
         aif_mtrc.disparate_impact_ratio(y_true, y_pred, prot_attr=pa_names)
     if not helper.is_tutorial_running() and not len(pa_names) > 1:
@@ -128,7 +146,8 @@ def __binary_group_fairness_measures(X, prtc_attr, y_true, y_pred, y_prob=None,
     gf_vals['Average Odds Difference'] = \
         aif_mtrc.average_odds_difference(y_true, y_pred, prot_attr=pa_names)
     gf_vals['Equal Opportunity Difference'] = \
-        aif_mtrc.equal_opportunity_difference(y_true, y_pred, prot_attr=pa_names)
+        aif_mtrc.equal_opportunity_difference(y_true, y_pred,
+                                              prot_attr=pa_names)
     if not helper.is_tutorial_running() and not len(pa_names) > 1:
         gf_vals['Equalized Odds Difference'] = \
             fl_mtrc.equalized_odds_difference(y_true, y_pred,
@@ -146,10 +165,17 @@ def __binary_group_fairness_measures(X, prtc_attr, y_true, y_pred, y_prob=None,
         gf_vals['AUC Difference'] = \
             aif_mtrc.difference(sk_metric.roc_auc_score, y_true, y_prob,
                                 prot_attr=pa_names, priv_group=priv_grp)
-    return (gf_key, gf_vals)
+    return gf_vals
 
 
 def __classification_performance_measures(y_true, y_pred):
+    """ Returns a dictionary containing performance measures specific to
+        classification problems
+
+    Args:
+        y_true (pandas DataFrame): Sample targets
+        y_pred (pandas DataFrame): Sample target predictions
+    """
     # Generate a model performance report
     # If more than 2 classes, return the weighted average prediction scores
     n_class = y_true.append(y_pred).iloc[:, 0].nunique()
@@ -159,43 +185,48 @@ def __classification_performance_measures(y_true, y_pred):
     avg_lbl = "weighted avg" if n_class > 2 else target_labels[-1]
     #
     mp_vals = {}
-    c_note = "" if n_class == 2 else "(Weighted Avg)"
-    mp_key = f'Model Performance {c_note}**'
     for score in ['precision', 'recall', 'f1-score']:
         mp_vals[score.title()] = rprt.loc[avg_lbl, score]
     mp_vals['Accuracy'] = rprt.loc['accuracy', 'accuracy']
-    return (mp_key, mp_vals)
+    return mp_vals
 
 
 def __individual_fairness_measures(X, prtc_attr, y_true, y_pred):
-    """
+    """ Returns a dictionary of individual fairness measures for the data that
+        were passed
+
     Args:
         X (pandas DataFrame): Sample features
-        prtc_attr (named array-like): values for the protected attribute
+        prtc_attr (named array-like): Values for the protected attribute
             (note: protected attribute may also be present in X)
         y_true (pandas DataFrame): Sample targets
         y_pred (pandas DataFrame): Sample target predictions
-
-    Returns:
-        Tuple containing a key (header string) and a dictionary of individual
-            fairness measures for the data that were passed
     """
     pa_names = prtc_attr.columns.tolist()
     # Generate dict of Individual Fairness measures
     if_vals = {}
-    if_key = 'Individual Fairness'
     if_vals['Consistency Score'] = \
         aif_mtrc.consistency_score(X, y_pred.iloc[:, 0])
     if_vals['Between-Group Generalized Entropy Error'] = \
         aif_mtrc.between_group_generalized_entropy_error(y_true, y_pred,
                                                          prot_attr=pa_names)
-    return (if_key, if_vals)
+    return if_vals
 
 
 def __regres_group_fairness_measures(prtc_attr, y_true, y_pred, priv_grp=1):
+    """ Returns a dictionary containing group fairness measures specific
+        to regression problems
+
+    Args:
+        prtc_attr (named array-like): Values for the protected attribute
+            (note: protected attribute may also be present in X)
+        y_true (pandas DataFrame): Sample targets
+        y_pred (pandas DataFrame): Sample target predictions
+        priv_group (int): Specifies which label indicates the privileged
+                group. Defaults to 1.
+    """
     pa_names = prtc_attr.columns.tolist()
     gf_vals = {}
-    gf_key = 'Group Fairness'
     gf_vals['Statistical Parity Ratio'] = \
         fl_mtrc.statistical_parity_ratio(y_true, y_pred,
                                          prot_attr=prtc_attr)
@@ -208,19 +239,28 @@ def __regres_group_fairness_measures(prtc_attr, y_true, y_pred, priv_grp=1):
     gf_vals['MSE Ratio'] = \
         aif_mtrc.ratio(sk_metric.mean_squared_error, y_true, y_pred,
                        prot_attr=pa_names, priv_group=priv_grp)
-    return (gf_key, gf_vals)
+    return gf_vals
 
 
 def __regression_performance_measures(y_true, y_pred):
+    """ Returns a dictionary containing performance measures specific to
+        classification problems
+
+    Args:
+        y_true (pandas DataFrame): Sample targets
+        y_pred (pandas DataFrame): Sample target predictions
+    """
     mp_vals = {}
-    mp_key = 'Model Performance'
     report = regression_performance(y_true, y_pred)
     for row in report.iterrows():
         mp_vals[row[0]] = row[1]['Score']
-    return (mp_key, mp_vals)
+    return mp_vals
 
 
 def __validate_report_inputs(X, prtc_attr, y_true, y_pred, y_prob=None):
+    """ Raises an error if any argument is of an invalid type for processing by
+        the fairness or performance reporters
+    """
     valid_data_types = (pd.DataFrame, pd.Series, np.ndarray)
     for data in [X, prtc_attr, y_true, y_pred]:
         if not isinstance(data, valid_data_types):
@@ -234,20 +274,18 @@ def __validate_report_inputs(X, prtc_attr, y_true, y_pred, y_prob=None):
 
 def classification_fairness(X, prtc_attr, y_true, y_pred, y_prob=None,
                             priv_grp=1):
-    """ Returns a dataframe containing fairness measures for the model results
+    """ Returns a pandas dataframe containing fairness measures for the model
+        results
 
         Args:
             X (array-like): Sample features
-            prtc_attr (array-like, named): values for the protected attribute
+            prtc_attr (array-like, named): Values for the protected attribute
                 (note: protected attribute may also be present in X)
             y_true (array-like, 1-D): Sample targets
             y_pred (array-like, 1-D): Sample target predictions
             y_prob (array-like, 1-D): Sample target probabilities
-            priv_grp (int, optional): label of the privileged group. Defaults
-                to 1.
-
-        Returns:
-            pandas dataframe
+            priv_group (int): Specifies which label indicates the privileged
+                group. Defaults to 1.
     """
     X, prtc_attr, y_true, y_pred, y_prob = \
         __format_fairtest_input(X, prtc_attr, y_true, y_pred, y_prob)
@@ -255,22 +293,26 @@ def classification_fairness(X, prtc_attr, y_true, y_pred, y_prob=None,
     # Generate dict of group fairness measures, if applicable
     n_class = y_true.append(y_pred).iloc[:, 0].nunique()
     if n_class == 2:
-        gf_key, gf_vals = \
+        gf_vals = \
             __binary_group_fairness_measures(X, prtc_attr, y_true, y_pred,
                                              y_prob, priv_grp)
     else:
         raise ValueError(
             "Reporter cannot yet process multiclass classification models")
     #
-    if_key, if_vals = \
-        __individual_fairness_measures(X, prtc_attr, y_true, y_pred)
+    if_vals = __individual_fairness_measures(X, prtc_attr, y_true, y_pred)
 
     #
-    mp_key, mp_vals = \
-        __classification_performance_measures(y_true, y_pred)
+    mp_vals = __classification_performance_measures(y_true, y_pred)
 
     # Convert scores to a formatted dataframe and return
-    measures = {gf_key: gf_vals, if_key: if_vals, mp_key: mp_vals}
+    if n_class == 2:
+        labels = get_report_labels()
+    else:
+        labels = get_report_labels("multiclass")
+    measures = {labels['gf_label']: gf_vals,
+                labels['if_label']: if_vals,
+                labels['mp_label']: mp_vals}
     df = pd.DataFrame.from_dict(measures, orient="index").stack().to_frame()
     df = pd.DataFrame(df[0].values.tolist(), index=df.index)
     df.columns = ['Value']
@@ -280,7 +322,8 @@ def classification_fairness(X, prtc_attr, y_true, y_pred, y_prob=None,
 
 
 def classification_performance(y_true, y_pred, target_labels=None):
-    """ Returns a formatted dataframe of the scikit-learn classification report
+    """ Returns a pandas dataframe of the scikit-learn classification report,
+        formatted for use in fairMLHealth tools
 
     Args:
         y_true (array): Target values. Must be compatible with model.predict().
@@ -297,7 +340,7 @@ def classification_performance(y_true, y_pred, target_labels=None):
     accuracy = report.loc['accuracy', :]
     report.drop('accuracy', inplace=True)
     report.loc['accuracy', 'accuracy'] = accuracy[0]
-    return(report)
+    return report
 
 
 def flag_suspicious(df, caption="", as_styler=False):
@@ -305,7 +348,7 @@ def flag_suspicious(df, caption="", as_styler=False):
         version of a model comparison dataframe
 
     Args:
-        df (pandas dataframe): model comparison dataframe (see)
+        df (pandas dataframe): Model comparison dataframe (see)
         caption (str, optional): Optional caption for table. Defaults to "".
         as_styler (bool, optional): If True, returns a pandas Styler of the
             highlighted table (to which other styles/highlights can be added).
@@ -313,7 +356,7 @@ def flag_suspicious(df, caption="", as_styler=False):
             False .
 
     Returns:
-        embedded html or pandas.io.formats.style.Styler
+        Embedded html or pandas.io.formats.style.Styler
     """
     if caption is None:
         caption = "Fairness Measures"
@@ -346,39 +389,39 @@ def flag_suspicious(df, caption="", as_styler=False):
                      else '' for i in x], axis=1
                      )
     if as_styler:
-        return(styled)
+        return styled
     else:
-        return(HTML(styled.render()))
+        return HTML(styled.render())
 
 
 def regression_fairness(X, prtc_attr, y_true, y_pred, priv_grp=1):
-    """ Generates a dataframe containing fairness measures for the model results
+    """ Returns a pandas dataframe containing fairness measures for the model
+        results
 
         Args:
             X (array-like): Sample features
-            prtc_attr (array-like, named): values for the protected attribute
+            prtc_attr (array-like, named): Values for the protected attribute
                 (note: protected attribute may also be present in X)
             y_true (array-like, 1-D): Sample targets
             y_pred (array-like, 1-D): Sample target probabilities
-            priv_grp (int, optional): label of the privileged group. Defaults
-                to 1.
-
-        Returns:
-            pandas dataframe
+            priv_group (int): Specifies which label indicates the privileged
+                group. Defaults to 1.
     """
     X, prtc_attr, y_true, y_pred, _ = \
         __format_fairtest_input(X, prtc_attr, y_true, y_pred)
     #
-    gf_key, gf_vals = \
-        __regres_group_fairness_measures(prtc_attr, y_true, y_pred, priv_grp=priv_grp)
+    gf_vals = \
+        __regres_group_fairness_measures(prtc_attr, y_true, y_pred,
+                                         priv_grp=priv_grp)
     #
-    if_key, if_vals = \
-        __individual_fairness_measures(X, prtc_attr, y_true, y_pred)
+    if_vals = __individual_fairness_measures(X, prtc_attr, y_true, y_pred)
     #
-    mp_key, mp_vals = \
-        __regression_performance_measures(y_true, y_pred)
+    mp_vals = __regression_performance_measures(y_true, y_pred)
     # Convert scores to a formatted dataframe and return
-    measures = {gf_key: gf_vals, if_key: if_vals, mp_key: mp_vals}
+    labels = get_report_labels("regression")
+    measures = {labels['gf_label']: gf_vals,
+                labels['if_label']: if_vals,
+                labels['mp_label']: mp_vals}
     df = pd.DataFrame.from_dict(measures, orient="index").stack().to_frame()
     df = pd.DataFrame(df[0].values.tolist(), index=df.index)
     df.columns = ['Value']
@@ -388,15 +431,12 @@ def regression_fairness(X, prtc_attr, y_true, y_pred, priv_grp=1):
 
 
 def regression_performance(y_true, y_pred):
-    """ Generates a report of the regression metrics, similar to scikit's
-        classification_performance
+    """ Returns a pandas dataframe of the regression performance metrics,
+        similar to scikit's classification_performance
 
     Args:
         y_true (array): Target values. Must be compatible with model.predict().
         y_pred (array): Prediction values. Must be compatible with model.predict().
-
-    Returns:
-        pandas dataframe
     """
     report = {}
     report['Rsqrd'] = sk_metric.r2_score(y_true, y_pred)
