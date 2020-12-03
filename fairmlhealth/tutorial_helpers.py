@@ -72,7 +72,7 @@ def highlight_vals(df, values, colname=None, criteria=None, color='magenta',
             to 'field'.
     """
     if (criteria is not None and values is not None):
-        print("Cannot process both crieteria and values.",
+        print("Cannot process both criteria and values.",
               "Defaulting to criteria entry")
     if h_type not in ['text', 'field']:
         raise ValueError("Wrong h_type sent")
@@ -115,7 +115,7 @@ def load_mimic3_example(mimic_dirpath):
             mimic_dirpath (str): valid path to downloaded MIMIC data
     """
     data_file = os.path.join(os.path.expanduser(mimic_dirpath),
-                                "kdd_tutorial_data.csv")
+                             "kdd_tutorial_data.csv")
     if not os.path.exists(data_file):
         formatter = format_mimic_data.mimic_loader(data_file)
         success = formatter.generate_tutorial_data()
@@ -159,7 +159,7 @@ Tutorial-Specific Helpers
 
 
 def simplify_tutorial_report(comparison_report_df):
-    """Updates a fainress comparison report to exlude FairLearn measures. For
+    """Updates a fairness comparison report to exclude FairLearn measures. For
         use in the KDD Tutorial, which first introduces AIF360 measures before
         introducing FairLearn
 
@@ -170,8 +170,8 @@ def simplify_tutorial_report(comparison_report_df):
         Returns:
             an updated version of the comparison_report_df
     """
-    print("Note: this report has been simplified for this tutorial.",
-          "For a more extensive report, omit the simplify_tutorial_report function")
+    print("Note: this report has been simplified for this tutorial. For a",
+          "more extensive report, omit the simplify_tutorial_report function")
     fl_measures = ["demographic_parity_difference", "demographic_parity_ratio",
                    "equalized_odds_difference", "equalized_odds_ratio"]
     ix_vals = comparison_report_df.index
@@ -179,4 +179,3 @@ def simplify_tutorial_report(comparison_report_df):
     drop_meas = [ix_vals.index(v) for v in ix_vals if v in fl_measures]
     df = comparison_report_df.drop(drop_meas, axis=0)
     return df
-

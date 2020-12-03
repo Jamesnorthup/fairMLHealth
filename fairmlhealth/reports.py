@@ -30,14 +30,13 @@ __all__ = ["classification_fairness",
            "flag_suspicious"]
 
 
-
-def get_report_labels(pred_type:str="binary"):
+# TODO: reference this function in the tutorial rather than using explicit names
+def get_report_labels(pred_type: str = "binary"):
     """ Returns a dictionary of category labels used by reporting functions
 
     Args:
         pred_type (b): number of classes in the prediction problem
     """
-    #TODO: reference this function in the tutorial rather than using explicit names
     valid_pred_types = ["binary", "multiclass", "regression"]
     if pred_type not in valid_pred_types:
         raise ValueError(f"pred_type must be one of {valid_pred_types}")
@@ -102,10 +101,10 @@ def __format_fairtest_input(X, prtc_attr, y_true, y_pred, y_prob=None):
     for c in pa_cols:
         binary = (set(prtc_attr[c].astype(int)) == set(prtc_attr[c]))
         boolean = (prtc_attr[c].dtype == bool)
-        two_valued = (set(prtc_attr[c].astype(int)) == {0,1})
+        two_valued = (set(prtc_attr[c].astype(int)) == {0, 1})
         if not two_valued and (binary or boolean):
             raise ValueError(
-                        "prtc_attr must be binary or boolean and heterogeneous")
+                    "prtc_attr must be binary or boolean and heterogeneous")
         prtc_attr.loc[:, c] = prtc_attr[c].astype(int)
         if isinstance(c, int):
             prtc_attr.rename(columns={c: f"prtc_attribute_{c}"}, inplace=True)
@@ -352,8 +351,8 @@ def flag_suspicious(df, caption="", as_styler=False):
         caption (str, optional): Optional caption for table. Defaults to "".
         as_styler (bool, optional): If True, returns a pandas Styler of the
             highlighted table (to which other styles/highlights can be added).
-            Otherwise, returns the table as an embedded HTML object. Defaults to
-            False .
+            Otherwise, returns the table as an embedded HTML object. Defaults
+            to False .
 
     Returns:
         Embedded html or pandas.io.formats.style.Styler
@@ -364,7 +363,7 @@ def flag_suspicious(df, caption="", as_styler=False):
     idx = pd.IndexSlice
     measures = df.index.get_level_values(1)
     ratios = df.loc[idx['Group Fairness',
-                    [c.lower().endswith("ratio") for c in measures]],:].index
+                    [c.lower().endswith("ratio") for c in measures]], :].index
     difference = df.loc[idx['Group Fairness',
                         [c.lower().endswith("difference")
                          for c in measures]], :].index
@@ -379,7 +378,7 @@ def flag_suspicious(df, caption="", as_styler=False):
               ).apply(lambda x: ['color:magenta'
                       if (x.name in cs and x.iloc[0] < 0.5) else '' for i in x],
                       axis=1
-              )
+                      )
     # Correct management of metric difference has yet to be determined for
     #   regression functions. Add style to o.o.r. difference for binary
     #   classification only
@@ -436,7 +435,8 @@ def regression_performance(y_true, y_pred):
 
     Args:
         y_true (array): Target values. Must be compatible with model.predict().
-        y_pred (array): Prediction values. Must be compatible with model.predict().
+        y_pred (array): Prediction values. Must be compatible with
+            model.predict().
     """
     report = {}
     report['Rsqrd'] = sk_metric.r2_score(y_true, y_pred)

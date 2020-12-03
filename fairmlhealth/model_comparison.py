@@ -34,7 +34,7 @@ warnings.filterwarnings('ignore', module='sklearn')
 def compare_measures(test_data, target_data, protected_attr_data=None,
                      models=None):
     """ Generates a report comparing fairness measures for the models passed.
-            Note: This is a wrapper for the FairCompare.compare_measures method.
+            Note: This is a wrapper for the FairCompare.compare_measures method
             See FairCompare for more information.
 
     Returns:
@@ -104,7 +104,7 @@ class FairCompare(ABC):
             if len(data_shape) > 1 and data_shape[1] > 1:
                 raise ValidationError("This library is not yet compatible with"
                                       + " multiple protected attributes."
-                                    )
+                                      )
         # Ensure models appear as dict
         if not isinstance(self.models, (dict)) and self.models is not None:
             if not isinstance(self.models, (list, tuple, set)):
@@ -123,7 +123,7 @@ class FairCompare(ABC):
                     pred_func = getattr(m, "predict", None)
                     if not callable(pred_func):
                         raise ValidationError(
-                                    f"{m} model does not have predict function")
+                                f"{m} model does not have predict function")
         return None
 
     def __validation_paused(self):

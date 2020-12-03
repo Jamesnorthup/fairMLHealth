@@ -18,15 +18,15 @@ from sklearn import preprocessing
 
 
 def cb_round(series, base=5, sig_dec=0):
-    """ Returns the pandas series (or column) with values rounded per the custom
-            base value
+    """ Returns the pandas series (or column) with values rounded per the
+            custom base value
 
         Args:
             series (pd.Series): data to be rounded
             base (float): base value to which data should be rounded (may be
                 decimal)
-            sig_dec (int): number of significant decimals for the custom-rounded
-                value
+            sig_dec (int): number of significant decimals for the
+                custom-rounded value
     """
     if not base >= 0.01:
         raise ValueError(f"cannot round with base {base}."
@@ -125,7 +125,7 @@ class mimic_loader():
         admissions = self.__load_mimic_data("ax")
         if admissions['HADM_ID'].duplicated().any():
             raise ValueError(
-            "Error loading admission data: duplicate admission IDs present")
+                "Error loading admission data: duplicate admission IDs present")
         # Calculate AGE
         adm = admissions.groupby(['SUBJECT_ID', 'HADM_ID'], as_index=False
                                  )['ADMITTIME'].min()
@@ -157,7 +157,8 @@ class mimic_loader():
         ax['length_of_stay'] = \
             (ax['ADMITTIME'] - ax['DISCHTIME'])/pd.offsets.Day(-1)
         ax = ax.loc[ax['length_of_stay'].ge(0) & ax['length_of_stay'].lt(30), :]
-        adm_data = adm_data.merge(ax[['HADM_ID', 'length_of_stay']], how='inner')
+        adm_data = adm_data.merge(ax[['HADM_ID', 'length_of_stay']],
+                                  how='inner')
         # Test result before proceeding
         if not adm_data.notnull().any().any():
             raise ValueError(
