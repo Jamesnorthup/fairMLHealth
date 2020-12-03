@@ -56,23 +56,20 @@ def highlight_col(df, color='magenta'):
 
 def highlight_vals(df, values, colname=None, criteria=None, color='magenta',
                    h_type='field'):
-    """ Returns a list of strings setting the background color at each index of
-        df where a[column] is in the list of values
+    """ Returns a list of strings that can be applied via pandas styler to
+        change the color at each index of the passed df where df[colname] in
+        the list of values
 
     Args:
         df (pandas df): any dataframe
         values (list-like): values in colname to be highlighted
-        colname (str): name of column against which to match values. Defaults
-            to None.
+        colname (str): Name of column against which to match values. If None,
+            highlights all columns. Defaults to None.
         criteria (str): query criteria. may not . Defaults to None.
         color (str): css color name. Defaults to 'aquamarine'.
-        h_type (str, optional): [description]. Defaults to 'field'.
-
-    Raises:
-        ValueError: [description]
-
-    Returns:
-        [type]: [description]
+        h_type (str): one of 'text' or 'field' specifying what component of the
+            dataframe to highlight, where "field"="cell background". Defaults
+            to 'field'.
     """
     if (criteria is not None and values is not None):
         print("Cannot process both crieteria and values.",
@@ -102,24 +99,20 @@ def highlight_vals(df, values, colname=None, criteria=None, color='magenta',
                 if highlight.any() else '' for v in highlight]
 
 
-
-
 '''
 Loaders and Printers
 '''
 
 
 def load_mimic3_example(mimic_dirpath):
-    """ Returns a formatted MIMIC-III data subset for use in KDD Tutorial
+    """ Returns a pandas dataframe containing a formatted MIMIC-III data subset
+        for use in fairMLHealth Tutorials
 
         If formatted data file exists, loads that file. Else, generates
         formatted data and saves in mimic_dirpath.
 
         Args:
             mimic_dirpath (str): valid path to downloaded MIMIC data
-
-        Returns:
-            pandas dataframe of formatted MIMIC-III data
     """
     data_file = os.path.join(os.path.expanduser(mimic_dirpath),
                                 "kdd_tutorial_data.csv")
@@ -138,7 +131,7 @@ def load_mimic3_example(mimic_dirpath):
     #   confusion for first-time tutorial users
     df = df.loc[:, [c for c in df.columns
                     if c != 'length_of_stay']+['length_of_stay']]
-    return(df)
+    return df
 
 
 def print_feature_table(df):
@@ -185,5 +178,5 @@ def simplify_tutorial_report(comparison_report_df):
     ix_vals = [v.replace(" ", "_").lower() for v in ix_vals]
     drop_meas = [ix_vals.index(v) for v in ix_vals if v in fl_measures]
     df = comparison_report_df.drop(drop_meas, axis=0)
-    return(df)
+    return df
 

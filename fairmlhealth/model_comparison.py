@@ -37,12 +37,12 @@ def compare_measures(test_data, target_data, protected_attr_data=None,
             Note: This is a wrapper for the FairCompare.compare_measures method.
             See FairCompare for more information.
 
-        Returns:
-            a pandas dataframe
+    Returns:
+        pandas dataframe of fairness and performance measures for each model
     """
     comp = FairCompare(test_data, target_data, protected_attr_data, models)
     table = comp.compare_measures()
-    return(table)
+    return table
 
 
 class FairCompare(ABC):
@@ -50,25 +50,26 @@ class FairCompare(ABC):
     """
     def __init__(self, test_data, target_data, protected_attr_data=None,
                  models=None):
-        """
-            Args:
-                test_data (numpy array or similar pandas object): data to be
-                    passed to the models to generate predictions. It's
-                    recommended that these be separate data from those used to
-                    train the model.
-                target_data (numpy array or similar pandas object): target data
-                    array corresponding to the test data. It is recommended that
-                    the target is not present in the test_data.
-                protected_attr_data (numpy array or similar pandas object):
-                    data for the protected attributes. These data do not need to
-                    be present in test_data, but the rows must correspond
-                    with test_data.  Note that values must currently be
-                    binary or boolean type.
-                models (dict or list-like): the set of trained models to be
-                    evaluated. Models can be any object with a scikit-like
-                    predict() method. Dict keys assumed as model names. If a
-                    list-like object is passed, will set model names relative to
-                    their index
+        """ Generates fairness comparisons
+
+        Args:
+            test_data (numpy array or similar pandas object): data to be
+                passed to the models to generate predictions. It's
+                recommended that these be separate data from those used to
+                train the model.
+            target_data (numpy array or similar pandas object): target data
+                array corresponding to the test data. It is recommended that
+                the target is not present in the test_data.
+            protected_attr_data (numpy array or similar pandas object):
+                data for the protected attributes. These data do not need to
+                be present in test_data, but the rows must correspond
+                with test_data.  Note that values must currently be
+                binary or boolean type.
+            models (dict or list-like): the set of trained models to be
+                evaluated. Models can be any object with a scikit-like
+                predict() method. Dict keys assumed as model names. If a
+                list-like object is passed, will set model names relative to
+                their index
         """
         self.X = test_data
         self.protected_attr = protected_attr_data
@@ -80,8 +81,8 @@ class FairCompare(ABC):
         """ Verifies that attributes are set appropriately and updates as
                 appropriate
 
-            Raises:
-                ValidationError
+        Raises:
+            ValidationError
         """
         # Skip validation if paused
         if self.__validation_paused():
@@ -137,11 +138,12 @@ class FairCompare(ABC):
             self.__pause_validation = True
 
     def measure_model(self, model_name):
-        """ Generates a report comparing fairness measures for the model_name
-                specified
+        """ Returns a pandas dataframe containing fairness measures for the
+                model_name specified
 
-            Returns:
-                a pandas dataframe
+        Args:
+            model_name (str): a key corresponding to the model of interest,
+                as found in the object's "models" dictionary
         """
         self.__validate()
         if model_name not in self.models.keys():
@@ -171,11 +173,8 @@ class FairCompare(ABC):
             return res
 
     def compare_measures(self):
-        """ Generates a report comparing fairness measures for all available
-                models
-
-        Returns:
-            a pandas dataframe
+        """ Returns a pandas dataframe containing fairness and performance
+            measures for all available models
         """
         self.__validate()
         if len(self.models) == 0:
@@ -204,21 +203,6 @@ class FairCompare(ABC):
         if not os.path.exists(dirpath):
             os.makedirs(dirpath)
         dump(self, filepath)
-
-
-def load_comparison(filepath):
-    """ Loads a file directly into a FairCompare object
-
-        Returns:
-            initialized FairCompare object
-    """
-    data = load(filepath)
-    fair_comp = FairCompare(test_data=data['test_data'],
-                            target_data=data['target_data'],
-                            models=data['models'],
-                            train_data=data['train_data']
-                            )
-    return fair_comp
 
 
 class ValidationError(Exception):
