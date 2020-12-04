@@ -272,7 +272,7 @@ def __validate_report_inputs(X, prtc_attr, y_true, y_pred, y_prob=None):
 
 
 def classification_fairness(X, prtc_attr, y_true, y_pred, y_prob=None,
-                            priv_grp=1):
+                            priv_grp=1, sig_dec=4):
     """ Returns a pandas dataframe containing fairness measures for the model
         results
 
@@ -285,7 +285,12 @@ def classification_fairness(X, prtc_attr, y_true, y_pred, y_prob=None,
             y_prob (array-like, 1-D): Sample target probabilities
             priv_group (int): Specifies which label indicates the privileged
                 group. Defaults to 1.
+            sig_dec (int): number of significant decimals to which to round
+                measure values. Defaults to 4.
     """
+    # Validate and Format Arguments
+    if not all([isinstance(a, int) for a in [priv_group, sig_dec]]):
+        raise ValueError(f"{a} must be an integer value")
     X, prtc_attr, y_true, y_pred, y_prob = \
         __format_fairtest_input(X, prtc_attr, y_true, y_pred, y_prob)
 
@@ -315,7 +320,7 @@ def classification_fairness(X, prtc_attr, y_true, y_pred, y_prob=None,
     df = pd.DataFrame.from_dict(measures, orient="index").stack().to_frame()
     df = pd.DataFrame(df[0].values.tolist(), index=df.index)
     df.columns = ['Value']
-    df['Value'] = df.loc[:, 'Value'].round(4)
+    df['Value'] = df.loc[:, 'Value'].round(sig_dec)
     df.fillna("", inplace=True)
     return df
 
@@ -393,7 +398,7 @@ def flag_suspicious(df, caption="", as_styler=False):
         return HTML(styled.render())
 
 
-def regression_fairness(X, prtc_attr, y_true, y_pred, priv_grp=1):
+def regression_fairness(X, prtc_attr, y_true, y_pred, priv_grp=1, sig_dec=4):
     """ Returns a pandas dataframe containing fairness measures for the model
         results
 
@@ -405,7 +410,12 @@ def regression_fairness(X, prtc_attr, y_true, y_pred, priv_grp=1):
             y_pred (array-like, 1-D): Sample target probabilities
             priv_group (int): Specifies which label indicates the privileged
                 group. Defaults to 1.
+            sig_dec (int): number of significant decimals to which to round
+                measure values. Defaults to 4.
     """
+    # Validate and Format Arguments
+    if not all([isinstance(a, int) for a in [priv_group, sig_dec]]):
+        raise ValueError(f"{a} must be an integer value")
     X, prtc_attr, y_true, y_pred, _ = \
         __format_fairtest_input(X, prtc_attr, y_true, y_pred)
     #
@@ -424,7 +434,7 @@ def regression_fairness(X, prtc_attr, y_true, y_pred, priv_grp=1):
     df = pd.DataFrame.from_dict(measures, orient="index").stack().to_frame()
     df = pd.DataFrame(df[0].values.tolist(), index=df.index)
     df.columns = ['Value']
-    df['Value'] = df.loc[:, 'Value'].round(4)
+    df['Value'] = df.loc[:, 'Value'].round(sig_dec)
     df.fillna("", inplace=True)
     return df
 
