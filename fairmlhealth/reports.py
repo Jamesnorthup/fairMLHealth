@@ -41,9 +41,10 @@ def get_report_labels(pred_type: str = "binary"):
     if pred_type not in valid_pred_types:
         raise ValueError(f"pred_type must be one of {valid_pred_types}")
     c_note = "" if pred_type == "binary" else " (Weighted Avg)"
-    report_labels = {'if_key': "Individual Fairness"
-                     'gf_label': "Group Fairness"
-                     'mp_label': f"Model Performance{c_note}"
+    report_labels = {'if_key': "Individual Fairness",
+                     'gf_label': "Group Fairness",
+                     'mp_label': f"Model Performance{c_note}",
+                     'dt_label': "Data Metrics"
                      }
     return report_labels
 
@@ -190,6 +191,21 @@ def __classification_performance_measures(y_true, y_pred):
     return mp_vals
 
 
+def __data_metrics(y_true, priv_group):
+    """Returns a dictionary of data metrics applicable to evaluation of
+    fairness
+
+    Args:
+        y_true (pandas DataFrame): Sample targets
+        priv_group (int): Specifies which label indicates the privileged
+                group. Defaults to 1.
+    """
+    dt_vals = {}
+    dt_vals['Prevalence of Privileged Class (%)'] = \
+        round(100*y_true[y_true.eq(priv_group)].sum()/y_true.shape[0])
+    return dt_vals
+
+
 def __individual_fairness_measures(X, prtc_attr, y_true, y_pred):
     """ Returns a dictionary of individual fairness measures for the data that
         were passed
@@ -305,9 +321,8 @@ def classification_fairness(X, prtc_attr, y_true, y_pred, y_prob=None,
             "Reporter cannot yet process multiclass classification models")
     #
     if_vals = __individual_fairness_measures(X, prtc_attr, y_true, y_pred)
-
-    #
     mp_vals = __classification_performance_measures(y_true, y_pred)
+    dt_vals = __data_metrics(y_true, priv_grp)
 
     # Convert scores to a formatted dataframe and return
     if n_class == 2:
@@ -316,7 +331,9 @@ def classification_fairness(X, prtc_attr, y_true, y_pred, y_prob=None,
         labels = get_report_labels("multiclass")
     measures = {labels['gf_label']: gf_vals,
                 labels['if_label']: if_vals,
-                labels['mp_label']: mp_vals}
+                labels['mp_label']: mp_vals,
+                labels['dt_label']: dt_vals
+                }
     df = pd.DataFrame.from_dict(measures, orient="index").stack().to_frame()
     df = pd.DataFrame(df[0].values.tolist(), index=df.index)
     df.columns = ['Value']
@@ -424,13 +441,15 @@ def regression_fairness(X, prtc_attr, y_true, y_pred, priv_grp=1, sig_dec=4):
                                          priv_grp=priv_grp)
     #
     if_vals = __individual_fairness_measures(X, prtc_attr, y_true, y_pred)
-    #
     mp_vals = __regression_performance_measures(y_true, y_pred)
+    dt_vals = __data_metrics(y_true, priv_grp)
+
     # Convert scores to a formatted dataframe and return
     labels = get_report_labels("regression")
     measures = {labels['gf_label']: gf_vals,
                 labels['if_label']: if_vals,
-                labels['mp_label']: mp_vals}
+                labels['mp_label']: mp_vals,
+                labels['dt_label']: dt_vals}
     df = pd.DataFrame.from_dict(measures, orient="index").stack().to_frame()
     df = pd.DataFrame(df[0].values.tolist(), index=df.index)
     df.columns = ['Value']
