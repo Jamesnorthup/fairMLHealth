@@ -11,6 +11,7 @@ from abc import ABC
 import aif360.sklearn.metrics as aif_mtrc
 import fairlearn.metrics as fl_mtrc
 from IPython.display import HTML
+import logging
 import pandas as pd
 import numpy as np
 import sklearn.metrics as sk_metric
@@ -80,8 +81,8 @@ def __format_fairtest_input(X, prtc_attr, y_true, y_pred, y_prob=None):
     if isinstance(y_prob, np.ndarray):
         y_prob = pd.DataFrame(y_prob)
     for data in [y_true, y_pred, y_prob]:
-        if data is not None and data.shape[1] > 1:
-            raise TypeError("targets and predictions must be 1-Dimensional")
+        if data is not None and (len(data.shape) > 1 and data.shape[1] > 1):
+            raise TypeError("Targets and predictions must be 1-Dimensional")
 
     # Format and set sensitive attributes as index for y dataframes
     pa_name = prtc_attr.columns.tolist()
@@ -94,7 +95,7 @@ def __format_fairtest_input(X, prtc_attr, y_true, y_pred, y_prob=None):
     if y_prob is not None:
         y_prob = pd.concat([prtc_attr, y_prob.reset_index(drop=True)],
                            axis=1
-                  ).set_index(pa_name)
+                           ).set_index(pa_name)
         y_prob.columns = y_true.columns
 
     # Ensure that protected attributes are integer-valued
@@ -220,8 +221,15 @@ def __individual_fairness_measures(X, prtc_attr, y_true, y_pred):
     pa_names = prtc_attr.columns.tolist()
     # Generate dict of Individual Fairness measures
     if_vals = {}
-    if_vals['Consistency Score'] = \
-        aif_mtrc.consistency_score(X, y_pred.iloc[:, 0])
+    if_key = 'Individual Fairness'
+    # consistency_score raises error if null values are present in X
+    if X.notnull().all().all():
+        if_vals['Consistency Score'] = \
+            aif_mtrc.consistency_score(X, y_pred.iloc[:, 0])
+    else:
+        msg = "Cannot calculate consistency score. Null values present in data."
+        logging.info(msg)
+    # Other aif360 metrics (not consistency) can handle null values
     if_vals['Between-Group Generalized Entropy Error'] = \
         aif_mtrc.between_group_generalized_entropy_error(y_true, y_pred,
                                                          prot_attr=pa_names)
