@@ -42,7 +42,7 @@ def get_report_labels(pred_type: str = "binary"):
     if pred_type not in valid_pred_types:
         raise ValueError(f"pred_type must be one of {valid_pred_types}")
     c_note = "" if pred_type == "binary" else " (Weighted Avg)"
-    report_labels = {'if_key': "Individual Fairness",
+    report_labels = {'if_label': "Individual Fairness",
                      'gf_label': "Group Fairness",
                      'mp_label': f"Model Performance{c_note}",
                      'dt_label': "Data Metrics"
@@ -127,7 +127,7 @@ def __binary_group_fairness_measures(X, prtc_attr, y_true, y_pred, y_prob=None,
         y_pred (pandas DataFrame): Sample target predictions
         y_prob (pandas DataFrame, optional): Sample target probabilities.
             Defaults to None.
-        priv_group (int): Specifies which label indicates the privileged
+        priv_grp (int): Specifies which label indicates the privileged
                 group. Defaults to 1.
     """
     pa_names = prtc_attr.columns.tolist()
@@ -192,18 +192,18 @@ def __classification_performance_measures(y_true, y_pred):
     return mp_vals
 
 
-def __data_metrics(y_true, priv_group):
+def __data_metrics(y_true, priv_grp):
     """Returns a dictionary of data metrics applicable to evaluation of
     fairness
 
     Args:
         y_true (pandas DataFrame): Sample targets
-        priv_group (int): Specifies which label indicates the privileged
+        priv_grp (int): Specifies which label indicates the privileged
                 group. Defaults to 1.
     """
     dt_vals = {}
     dt_vals['Prevalence of Privileged Class (%)'] = \
-        round(100*y_true[y_true.eq(priv_group)].sum()/y_true.shape[0])
+        round(100*y_true[y_true.eq(priv_grp)].sum()/y_true.shape[0])
     return dt_vals
 
 
@@ -221,7 +221,7 @@ def __individual_fairness_measures(X, prtc_attr, y_true, y_pred):
     pa_names = prtc_attr.columns.tolist()
     # Generate dict of Individual Fairness measures
     if_vals = {}
-    if_key = 'Individual Fairness'
+    if_label = 'Individual Fairness'
     # consistency_score raises error if null values are present in X
     if X.notnull().all().all():
         if_vals['Consistency Score'] = \
@@ -245,7 +245,7 @@ def __regres_group_fairness_measures(prtc_attr, y_true, y_pred, priv_grp=1):
             (note: protected attribute may also be present in X)
         y_true (pandas DataFrame): Sample targets
         y_pred (pandas DataFrame): Sample target predictions
-        priv_group (int): Specifies which label indicates the privileged
+        priv_grp (int): Specifies which label indicates the privileged
                 group. Defaults to 1.
     """
     pa_names = prtc_attr.columns.tolist()
@@ -307,13 +307,13 @@ def classification_fairness(X, prtc_attr, y_true, y_pred, y_prob=None,
             y_true (array-like, 1-D): Sample targets
             y_pred (array-like, 1-D): Sample target predictions
             y_prob (array-like, 1-D): Sample target probabilities
-            priv_group (int): Specifies which label indicates the privileged
+            priv_grp (int): Specifies which label indicates the privileged
                 group. Defaults to 1.
             sig_dec (int): number of significant decimals to which to round
                 measure values. Defaults to 4.
     """
     # Validate and Format Arguments
-    if not all([isinstance(a, int) for a in [priv_group, sig_dec]]):
+    if not all([isinstance(a, int) for a in [priv_grp, sig_dec]]):
         raise ValueError(f"{a} must be an integer value")
     X, prtc_attr, y_true, y_pred, y_prob = \
         __format_fairtest_input(X, prtc_attr, y_true, y_pred, y_prob)
@@ -345,8 +345,7 @@ def classification_fairness(X, prtc_attr, y_true, y_pred, y_prob=None,
     df = pd.DataFrame.from_dict(measures, orient="index").stack().to_frame()
     df = pd.DataFrame(df[0].values.tolist(), index=df.index)
     df.columns = ['Value']
-    df['Value'] = df.loc[:, 'Value'].round(sig_dec)
-    df.fillna("", inplace=True)
+    df['Value'] = df.loc[:, 'Value'].astype(float).round(sig_dec)
     return df
 
 
@@ -422,6 +421,8 @@ def flag_suspicious(df, caption="", as_styler=False):
     else:
         return HTML(styled.render())
 
+def format_results():
+    pass
 
 def regression_fairness(X, prtc_attr, y_true, y_pred, priv_grp=1, sig_dec=4):
     """ Returns a pandas dataframe containing fairness measures for the model
@@ -433,13 +434,13 @@ def regression_fairness(X, prtc_attr, y_true, y_pred, priv_grp=1, sig_dec=4):
                 (note: protected attribute may also be present in X)
             y_true (array-like, 1-D): Sample targets
             y_pred (array-like, 1-D): Sample target probabilities
-            priv_group (int): Specifies which label indicates the privileged
+            priv_grp (int): Specifies which label indicates the privileged
                 group. Defaults to 1.
             sig_dec (int): number of significant decimals to which to round
                 measure values. Defaults to 4.
     """
     # Validate and Format Arguments
-    if not all([isinstance(a, int) for a in [priv_group, sig_dec]]):
+    if not all([isinstance(a, int) for a in [priv_grp, sig_dec]]):
         raise ValueError(f"{a} must be an integer value")
     X, prtc_attr, y_true, y_pred, _ = \
         __format_fairtest_input(X, prtc_attr, y_true, y_pred)
@@ -461,8 +462,7 @@ def regression_fairness(X, prtc_attr, y_true, y_pred, priv_grp=1, sig_dec=4):
     df = pd.DataFrame.from_dict(measures, orient="index").stack().to_frame()
     df = pd.DataFrame(df[0].values.tolist(), index=df.index)
     df.columns = ['Value']
-    df['Value'] = df.loc[:, 'Value'].round(sig_dec)
-    df.fillna("", inplace=True)
+    df['Value'] = df.loc[:, 'Value'].astype(float).round(sig_dec)
     return df
 
 
