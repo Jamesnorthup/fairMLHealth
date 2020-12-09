@@ -154,6 +154,15 @@ def __binary_group_fairness_measures(X, prtc_attr, y_true, y_pred, y_prob=None,
     gf_vals['Equal Opportunity Difference'] = \
         aif_mtrc.equal_opportunity_difference(y_true, y_pred,
                                               prot_attr=pa_names)
+    # Precision
+    gf_vals['Positive Predictive Parity Difference'] = \
+        aif_mtrc.difference(sk_metric.precision_score, y_true,
+                            y_pred, prot_attr=pa_names, priv_group=priv_grp)
+    gf_vals['Balanced Accuracy Difference'] = \
+        aif_mtrc.difference(sk_metric.balanced_accuracy_score, y_true,
+                            y_pred, prot_attr=pa_names, priv_group=priv_grp)
+    # Add FairLearn metrics
+    # ToDo: add deprecation warning and remove FairLearn from v0.1.0
     if not helper.is_tutorial_running() and not len(pa_names) > 1:
         gf_vals['Equalized Odds Difference'] = \
             fl_mtrc.equalized_odds_difference(y_true, y_pred,
@@ -161,16 +170,29 @@ def __binary_group_fairness_measures(X, prtc_attr, y_true, y_pred, y_prob=None,
         gf_vals['Equalized Odds Ratio'] = \
             fl_mtrc.equalized_odds_ratio(y_true, y_pred,
                                          sensitive_features=prtc_attr)
-    gf_vals['Positive Predictive Parity Difference'] = \
-        aif_mtrc.difference(sk_metric.precision_score, y_true,
-                            y_pred, prot_attr=pa_names, priv_group=priv_grp)
-    gf_vals['Balanced Accuracy Difference'] = \
-        aif_mtrc.difference(sk_metric.balanced_accuracy_score, y_true,
-                            y_pred, prot_attr=pa_names, priv_group=priv_grp)
-    if y_prob is not None:
-        gf_vals['AUC Difference'] = \
-            aif_mtrc.difference(sk_metric.roc_auc_score, y_true, y_prob,
-                                prot_attr=pa_names, priv_group=priv_grp)
+    # Add expanded metrics aid in understanding the above where tutorial is
+    # not running
+    if not helper.is_tutorial_running():
+        def false_alarm_rate(y_true, y_pred):
+            rprt = classification_breakdown(y_true, y_pred)
+            return rprt['FP']/(rprt['FP'] + rprt['TN'])
+
+        gf_vals['Balanced Accuracy Ratio'] = \
+            aif_mtrc.ratio(sk_metric.balanced_accuracy_score, y_true,
+                           y_pred, prot_attr=pa_names, priv_group=priv_grp)
+        # TPR
+        gf_vals['Recall Ratio'] = \
+            aif_mtrc.ratio(sk_metric.recall_score, y_true,
+                           y_pred, prot_attr=pa_names, priv_group=priv_grp)
+        # FPR
+        gf_vals['False Alarm Ratio'] = \
+            aif_mtrc.ratio(false_alarm_rate,
+                           y_true, y_pred, prot_attr=pa_names,
+                           priv_group=priv_grp)
+        if y_prob is not None:
+            gf_vals['AUC Difference'] = \
+                aif_mtrc.difference(sk_metric.roc_auc_score, y_true, y_prob,
+                                    prot_attr=pa_names, priv_group=priv_grp)
     return gf_vals
 
 
@@ -384,6 +406,18 @@ def classification_performance(y_true, y_pred, target_labels=None):
     accuracy = report.loc['accuracy', :]
     report.drop('accuracy', inplace=True)
     report.loc['accuracy', 'accuracy'] = accuracy[0]
+    return report
+
+
+def classification_breakdown(y_true, y_pred):
+    """
+    """
+    report = {}
+    cmtrx = sk_metric.confusion_matrix(y_true, y_pred)
+    report['TN'] = cmtrx[0][0]
+    report['FN'] = cmtrx[1][0]
+    report['TP'] = cmtrx[1][1]
+    report['FP'] = cmtrx[0][1]
     return report
 
 
