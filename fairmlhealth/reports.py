@@ -24,6 +24,7 @@ from . import tutorial_helpers as helper
 warnings.filterwarnings('ignore', module='pandas')
 warnings.filterwarnings('ignore', module='sklearn')
 
+
 __all__ = ["classification_fairness",
            "classification_performance",
            "regression_fairness",
@@ -50,7 +51,8 @@ def get_report_labels(pred_type: str = "binary"):
     return report_labels
 
 
-def __format_fairtest_input(X, prtc_attr, y_true, y_pred, y_prob=None):
+def __format_fairtest_input(X, prtc_attr, y_true, y_pred, y_prob=None,
+                            priv_grp=1):
     """ Formats data for use by fairness reporting functions.
 
     Args:
@@ -61,10 +63,13 @@ def __format_fairtest_input(X, prtc_attr, y_true, y_pred, y_prob=None):
         y_pred (1D array-like): Sample target predictions
         y_prob (1D array-like, optional): Sample target probabilities. Defaults
             to None.
+        priv_grp (int, optional): label of the privileged group. Defaults
+            to 1.
+
     Returns:
         Tuple containing formatted versions of all passed args.
     """
-    __validate_report_inputs(X, prtc_attr, y_true, y_pred, y_prob)
+    __validate_report_inputs(X, prtc_attr, y_true, y_pred, y_prob, priv_grp)
 
     # Format inputs to required datatypes
     if isinstance(X, np.ndarray):
@@ -228,7 +233,7 @@ def __individual_fairness_measures(X, prtc_attr, y_true, y_pred):
             aif_mtrc.consistency_score(X, y_pred.iloc[:, 0])
     else:
         msg = "Cannot calculate consistency score. Null values present in data."
-        logging.info(msg)
+        logging.warning(msg)
     # Other aif360 metrics (not consistency) can handle null values
     if_vals['Between-Group Generalized Entropy Error'] = \
         aif_mtrc.between_group_generalized_entropy_error(y_true, y_pred,
@@ -280,9 +285,18 @@ def __regression_performance_measures(y_true, y_pred):
     return mp_vals
 
 
-def __validate_report_inputs(X, prtc_attr, y_true, y_pred, y_prob=None):
-    """ Raises an error if any argument is of an invalid type for processing by
+def __validate_report_inputs(X, prtc_attr, y_true, y_pred, y_prob=None,
+                             priv_grp=1):
+    """ Raises error if data are of incorrect type or size for processing by
         the fairness or performance reporters
+
+    Args:
+        X (array-like): Sample features
+        prtc_attr (array-like, named): values for the protected attribute
+            (note: protected attribute may also be present in X)
+        y_true (array-like, 1-D): Sample targets
+        y_pred (array-like, 1-D): Sample target predictions
+        y_prob (array-like, 1-D): Sample target probabilities
     """
     valid_data_types = (pd.DataFrame, pd.Series, np.ndarray)
     for data in [X, prtc_attr, y_true, y_pred]:
@@ -293,6 +307,8 @@ def __validate_report_inputs(X, prtc_attr, y_true, y_pred, y_prob=None):
     if y_prob is not None:
         if not isinstance(y_prob, valid_data_types):
             raise TypeError("y_prob is invalid type")
+    if not isinstance(priv_grp, int):
+        raise TypeError("priv_grp must be an integer")
 
 
 def classification_fairness(X, prtc_attr, y_true, y_pred, y_prob=None,
@@ -300,23 +316,23 @@ def classification_fairness(X, prtc_attr, y_true, y_pred, y_prob=None,
     """ Returns a pandas dataframe containing fairness measures for the model
         results
 
-        Args:
-            X (array-like): Sample features
-            prtc_attr (array-like, named): Values for the protected attribute
-                (note: protected attribute may also be present in X)
-            y_true (array-like, 1-D): Sample targets
-            y_pred (array-like, 1-D): Sample target predictions
-            y_prob (array-like, 1-D): Sample target probabilities
-            priv_grp (int): Specifies which label indicates the privileged
-                group. Defaults to 1.
-            sig_dec (int): number of significant decimals to which to round
-                measure values. Defaults to 4.
+    Args:
+        X (array-like): Sample features
+        prtc_attr (array-like, named): Values for the protected attribute
+            (note: protected attribute may also be present in X)
+        y_true (array-like, 1-D): Sample targets
+        y_pred (array-like, 1-D): Sample target predictions
+        y_prob (array-like, 1-D): Sample target probabilities
+        priv_grp (int): Specifies which label indicates the privileged
+            group. Defaults to 1.
+        sig_dec (int): number of significant decimals to which to round
+            measure values. Defaults to 4.
     """
     # Validate and Format Arguments
     if not all([isinstance(a, int) for a in [priv_grp, sig_dec]]):
         raise ValueError(f"{a} must be an integer value")
     X, prtc_attr, y_true, y_pred, y_prob = \
-        __format_fairtest_input(X, prtc_attr, y_true, y_pred, y_prob)
+        __format_fairtest_input(X, prtc_attr, y_true, y_pred, y_prob, priv_grp)
 
     # Generate dict of group fairness measures, if applicable
     n_class = y_true.append(y_pred).iloc[:, 0].nunique()
@@ -437,22 +453,22 @@ def regression_fairness(X, prtc_attr, y_true, y_pred, priv_grp=1, sig_dec=4):
     """ Returns a pandas dataframe containing fairness measures for the model
         results
 
-        Args:
-            X (array-like): Sample features
-            prtc_attr (array-like, named): Values for the protected attribute
-                (note: protected attribute may also be present in X)
-            y_true (array-like, 1-D): Sample targets
-            y_pred (array-like, 1-D): Sample target probabilities
-            priv_grp (int): Specifies which label indicates the privileged
-                group. Defaults to 1.
-            sig_dec (int): number of significant decimals to which to round
-                measure values. Defaults to 4.
+    Args:
+        X (array-like): Sample features
+        prtc_attr (array-like, named): Values for the protected attribute
+            (note: protected attribute may also be present in X)
+        y_true (array-like, 1-D): Sample targets
+        y_pred (array-like, 1-D): Sample target probabilities
+        priv_grp (int): Specifies which label indicates the privileged
+            group. Defaults to 1.
+        sig_dec (int): number of significant decimals to which to round
+            measure values. Defaults to 4.
     """
     # Validate and Format Arguments
     if not all([isinstance(a, int) for a in [priv_grp, sig_dec]]):
         raise ValueError(f"{a} must be an integer value")
     X, prtc_attr, y_true, y_pred, _ = \
-        __format_fairtest_input(X, prtc_attr, y_true, y_pred)
+        __format_fairtest_input(X, prtc_attr, y_true, y_pred, priv_grp)
     #
     gf_vals = \
         __regres_group_fairness_measures(prtc_attr, y_true, y_pred,

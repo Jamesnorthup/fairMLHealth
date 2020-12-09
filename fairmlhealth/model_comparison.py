@@ -122,9 +122,9 @@ class FairCompare(ABC):
             msg = f"Could not measure fairness for {model_name}. Name" + \
                   f" not found in models. Available models include " + \
                   f" {list(self.models.keys())}"
-            logging.info(msg)
+            print(msg)
             return pd.DataFrame()
-        #
+        # Subset to objects for this specific model
         mdl = self.models[model_name]
         X = self.X if not is_dictlike(self.X) else self.X[model_name]
         y = self.y if not is_dictlike(self.y) else self.y[model_name]
@@ -133,12 +133,15 @@ class FairCompare(ABC):
         else:
             prtc_attr = self.protected_attr[model_name]
         # Verify that predictions can be generated from the test data
+        if mdl is None:
+            print("No model defined")
+            return None
         try:
             y_pred = mdl.predict(X)
         except BaseException as e:
             msg = f"Failure generating predictions for {model_name} model." + \
-                  " Verify that data are correctly formatted for this model." +\
-                  f"{e}"
+                  + " Verify if data are correctly formatted for this model." \
+                  + f"{e}"
             raise ValidationError(msg)
         # Since most fairness measures do not require probabilities, y_prob is
         #   optional
@@ -146,7 +149,7 @@ class FairCompare(ABC):
             y_prob = mdl.predict_proba(X)[:, 1]
         except BaseException as e:
             warnings.warn(f"Failure predicting probabilities for {model_name}."
-                          + f" Related metrics will be skipped. {e}")
+                          + f" Related metrics will be skipped. {e}\n")
             y_prob = None
         finally:
             res = reports.classification_fairness(X, prtc_attr,
@@ -238,8 +241,9 @@ class FairCompare(ABC):
         if is_dictlike(self.protected_attr):
             prtc_attr = self.protected_attr
         elif isinstance(self.protected_attr, array_types):
-            prtc_attr = {f'model_{i}': m for i, m in
-                         enumerate(self.protected_attr)}
+            self.protected_attr = {f'model_{i}': m for i, m in
+                                   enumerate(self.protected_attr)}
+            prtc_attr = self.protected_attr
         else:
             prtc_attr = {0: self.protected_attr}
         #
@@ -250,8 +254,14 @@ class FairCompare(ABC):
                 raise ValidationError(msg)
             data_shape = prt_at.shape
             if len(data_shape) > 1 and data_shape[1] > 1:
-                msg = "This library is not yet compatible with" + \
-                    " multiple protected attributes."
+                msg = "This library is not yet compatible with groups of" +\
+                      " protected attributes."
+                raise ValidationError(msg)
+            if prt_at.nunique() < 2:
+                msg = "Single label found in protected attribute (2 expected)."
+                raise ValidationError(msg)
+            elif prt_at.nunique() > 2:
+                msg = "Multiple labels found in protected attribute (2 expected)."
                 raise ValidationError(msg)
         ## Validate Models
         # Ensure models appear as dict
@@ -269,7 +279,7 @@ class FairCompare(ABC):
         if self.models is not None:
             if not len(self.models) > 0:
                 msg = "Cannot generate comparison with an empty set of models."
-                logging.info(msg)
+                logging.warning(msg)
             else:
                 for _, m in self.models.items():
                     pred_func = getattr(m, "predict", None)
