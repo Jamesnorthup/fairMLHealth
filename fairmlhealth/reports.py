@@ -345,7 +345,7 @@ def classification_fairness(X, prtc_attr, y_true, y_pred, y_prob=None,
     df = pd.DataFrame.from_dict(measures, orient="index").stack().to_frame()
     df = pd.DataFrame(df[0].values.tolist(), index=df.index)
     df.columns = ['Value']
-    df['Value'] = df.loc[:, 'Value'].astype(float).round(sig_dec)
+    df.loc[:, 'Value'] = df['Value'].astype(float).round(sig_dec)
     return df
 
 
@@ -400,29 +400,38 @@ def flag_suspicious(df, caption="", as_styler=False):
                 [c.lower().replace(" ", "_") == "consistency_score"
                  for c in measures]], :].index
 
+    #
+    def color_diff(row):
+        clr = ['color:magenta'
+               if (row.name in difference and not -0.1 < i < 0.1)
+               else '' for i in row]
+        return clr
+
+    def color_if(row):
+        clr = ['color:magenta'
+               if (row.name in cs and i < 0.8) else '' for i in row]
+        return clr
+
+    def color_ratios(row):
+        clr = ['color:magenta'
+               if (row.name in ratios and not 0.8 < i < 1.2)
+               else '' for i in row]
+        return clr
+
     styled = df.style.set_caption(caption
-              ).apply(lambda x: ['color:magenta'
-                      if (x.name in ratios and not 0.8 < x.iloc[0] < 1.2)
-                      else '' for i in x], axis=1
-              ).apply(lambda x: ['color:magenta'
-                      if (x.name in cs and x.iloc[0] < 0.5) else '' for i in x],
-                      axis=1
-                      )
+                    ).apply(color_diff, axis=1
+                    ).apply(color_ratios, axis=1
+                    ).apply(color_if, axis=1)
     # Correct management of metric difference has yet to be determined for
     #   regression functions. Add style to o.o.r. difference for binary
     #   classification only
     if "MSE Ratio" not in measures:
-        styled.apply(lambda x: ['color:magenta'
-                     if (x.name in difference and not -0.1 < x.iloc[0] < 0.1)
-                     else '' for i in x], axis=1
-                     )
+        styled.apply(color_diff, axis=1)
     if as_styler:
         return styled
     else:
         return HTML(styled.render())
 
-def format_results():
-    pass
 
 def regression_fairness(X, prtc_attr, y_true, y_pred, priv_grp=1, sig_dec=4):
     """ Returns a pandas dataframe containing fairness measures for the model
@@ -462,7 +471,7 @@ def regression_fairness(X, prtc_attr, y_true, y_pred, priv_grp=1, sig_dec=4):
     df = pd.DataFrame.from_dict(measures, orient="index").stack().to_frame()
     df = pd.DataFrame(df[0].values.tolist(), index=df.index)
     df.columns = ['Value']
-    df['Value'] = df.loc[:, 'Value'].astype(float).round(sig_dec)
+    df.loc[:, 'Value'] = df['Value'].astype(float).round(sig_dec)
     return df
 
 
