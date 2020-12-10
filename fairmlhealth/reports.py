@@ -174,7 +174,7 @@ def __binary_group_fairness_measures(X, prtc_attr, y_true, y_pred, y_prob=None,
     # not running
     if not helper.is_tutorial_running():
         def false_alarm_rate(y_true, y_pred):
-            rprt = classification_breakdown(y_true, y_pred)
+            rprt = binary_prediction_success(y_true, y_pred)
             return rprt['FP']/(rprt['FP'] + rprt['TN'])
 
         gf_vals['Balanced Accuracy Ratio'] = \
@@ -409,15 +409,16 @@ def classification_performance(y_true, y_pred, target_labels=None):
     return report
 
 
-def classification_breakdown(y_true, y_pred):
-    """
+def binary_prediction_success(y_true, y_pred):
+    """ Returns a dictionary with counts of TP, TN, FP, and FN
     """
     report = {}
-    cmtrx = sk_metric.confusion_matrix(y_true, y_pred)
-    report['TN'] = cmtrx[0][0]
-    report['FN'] = cmtrx[1][0]
-    report['TP'] = cmtrx[1][1]
-    report['FP'] = cmtrx[0][1]
+    res = pd.concat((y_true, y_pred), axis=1)
+    res.columns = ['t','p']
+    report['TP'] = (res['t'].eq(1) & res['p'].eq(1)).sum()
+    report['TN'] = (res['t'].eq(0) & res['p'].eq(0)).sum()
+    report['FP'] = (res['t'].eq(0) & res['p'].eq(1)).sum()
+    report['FN'] = (res['t'].eq(1) & res['p'].eq(0)).sum()
     return report
 
 
