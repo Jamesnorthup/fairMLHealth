@@ -173,19 +173,15 @@ def __binary_group_fairness_measures(X, prtc_attr, y_true, y_pred, y_prob=None,
     # Add expanded metrics aid in understanding the above where tutorial is
     # not running
     if not helper.is_tutorial_running():
-        def false_alarm_rate(y_true, y_pred):
-            rprt = binary_prediction_success(y_true, y_pred)
-            return rprt['FP']/(rprt['FP'] + rprt['TN'])
-
         gf_vals['Balanced Accuracy Ratio'] = \
             aif_mtrc.ratio(sk_metric.balanced_accuracy_score, y_true,
                            y_pred, prot_attr=pa_names, priv_group=priv_grp)
         # TPR
-        gf_vals['Recall Ratio'] = \
+        gf_vals['Recall (TPR) Ratio'] = \
             aif_mtrc.ratio(sk_metric.recall_score, y_true,
                            y_pred, prot_attr=pa_names, priv_group=priv_grp)
         # FPR
-        gf_vals['False Alarm Ratio'] = \
+        gf_vals['False Alarm (FPR) Ratio'] = \
             aif_mtrc.ratio(false_alarm_rate,
                            y_true, y_pred, prot_attr=pa_names,
                            priv_group=priv_grp)
@@ -542,3 +538,21 @@ def regression_performance(y_true, y_pred):
     report = pd.DataFrame().from_dict(report, orient='index'
                           ).rename(columns={0: 'Score'})
     return report
+
+'''
+'''
+def sensitivity(y_true, y_pred):
+    rprt = binary_prediction_success(y_true, y_pred)
+    return rprt['TP']/(rprt['FN'] + rprt['TP'])
+
+def false_alarm_rate(y_true, y_pred):
+    rprt = binary_prediction_success(y_true, y_pred)
+    return rprt['FP']/(rprt['FP'] + rprt['TN'])
+
+def specificity(y_true, y_pred):
+    prt = binary_prediction_success(y_true, y_pred)
+    return rprt['TN']/(rprt['FP'] + rprt['TN'])
+
+def miss_rate(y_true, y_pred):
+    rprt = binary_prediction_success(y_true, y_pred)
+    return rprt['FN']/(rprt['FN'] + rprt['TP'])
