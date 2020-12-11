@@ -215,8 +215,8 @@ class mimic_loader():
         output = ohe_df.groupby('HADM_ID', as_index=False).agg(agg_dict)
 
         #
-        fm_err = f"Error loading {feature_type}." +\
-                 " Missing admissions found in formatting"
+        fm_err = (f"Error loading {feature_type}."
+                  " Missing admissions found in formatting")
         if output[f'HADM_ID'].isnull().any():
             raise ValueError(fm_err)
         if output[f'HADM_ID'].duplicated().any():

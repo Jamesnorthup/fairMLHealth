@@ -9,16 +9,13 @@ Contributors:
 # Licensed under the MIT License.
 
 from abc import ABC
-import aif360.sklearn.metrics as aif_mtrc
-from collections import *
-import fairlearn.metrics as fl_mtrc
-from IPython.display import HTML
-from joblib import dump, load
+from collections import OrderedDict
+from joblib import dump
 import logging
 import numpy as np
 import pandas as pd
 import os
-from fairmlhealth.utils import *
+from fairmlhealth.utils import is_dictlike
 
 from fairmlhealth import reports
 
@@ -119,9 +116,9 @@ class FairCompare(ABC):
         """
         self.__validate()
         if model_name not in self.models.keys():
-            msg = f"Could not measure fairness for {model_name}. Name" + \
-                  f" not found in models. Available models include " + \
-                  f" {list(self.models.keys())}"
+            msg = (f"Could not measure fairness for {model_name}. Name"
+                  f" not found in models. Available models include "
+                  f" {list(self.models.keys())}")
             print(msg)
             return pd.DataFrame()
         # Subset to objects for this specific model
@@ -139,9 +136,9 @@ class FairCompare(ABC):
         try:
             y_pred = mdl.predict(X)
         except BaseException as e:
-            msg = f"Failure generating predictions for {model_name} model." + \
-                  + " Verify if data are correctly formatted for this model." \
-                  + f"{e}"
+            msg = (f"Failure generating predictions for {model_name} model."
+                  + " Verify if data are correctly formatted for this model."
+                  + f"{e}")
             raise ValidationError(msg)
         # Since most fairness measures do not require probabilities, y_prob is
         #   optional
@@ -163,10 +160,7 @@ class FairCompare(ABC):
         dump(self, filepath)
 
     def __toggle_validation(self):
-        if self.__pause_validation:
-            self.__pause_validation = False
-        else:
-            self.__pause_validation = True
+        self.__pause_validation = not self.__pause_validation
 
     def __validate(self):
         """ Verifies that attributes are set appropriately and updates as
@@ -194,25 +188,25 @@ class FairCompare(ABC):
         if any(isinstance(p, array_types) for p in dataobj):
             err = None
             if not len(set(type(p) for p in dataobj)) == 1:
-                err = "If the data arguments are passed in list/dict," + \
-                      " all three must be passed in same list/dict type."
+                err = ("If the data arguments are passed in list/dict,"
+                      " all three must be passed in same list/dict type.")
             elif not all(isinstance(p, type(self.models)) for p in dataobj):
-                err = "If the data arguments are passed in list/dict" + \
-                      " object must be passed as the same type as the" + \
-                      " models argument"
+                err = ("If the data arguments are passed in list/dict"
+                      " object must be passed as the same type as the"
+                      " models argument")
             elif not all(len(p) == len(self.models) for p in dataobj):
-                err = "If the data arguments are in list-like object, they" + \
-                      " must be of same length as the models argument"
+                err = ("If the data arguments are in list-like object, they"
+                      " must be of same length as the models argument")
 
             # Comparison function will use keys to iterate in comparisons
             if all(is_dictlike(p) for p in validobj):
                 if not all(p.keys() == self.models.keys() for p in dataobj):
-                    err = "If the data arguments are passed in dict-like" + \
-                          " object, all keys in data arguments must match" + \
-                          " the keys in the models argument"
+                    err = ("If the data arguments are passed in dict-like"
+                          " object, all keys in data arguments must match"
+                          " the keys in the models argument")
                 elif not all(len(p) == len(self.models) for p in dataobj):
-                    err = "If the data arguments are passed in list/dict," + \
-                          " they must be of same length as the models argument"
+                    err = ("If the data arguments are passed in list/dict,"
+                          " they must be of same length as the models argument")
 
             # convert to dict if not already dict. models will be converted
             #    Note: list-like protected_attr and model arguments will be
@@ -229,8 +223,8 @@ class FairCompare(ABC):
         for data in [Xd, yd]:
             for d in data.values():
                 if not isinstance(d, valid_data_types):
-                    msg = "Input data must be numpy array or pandas object," + \
-                        " or a list/dict of such objects"
+                    msg = ("Input data must be numpy array or pandas object,"
+                           " or a list/dict of such objects")
                     raise ValidationError(msg)
         for k in Xd.keys():
             if not Xd[k].shape[0] == yd[k].shape[0]:
@@ -249,26 +243,27 @@ class FairCompare(ABC):
         #
         for prt_at in prtc_attr.values():
             if not isinstance(prt_at, valid_data_types):
-                msg = "Protected attribute(s) must be numpy array or" + \
-                    " similar pandas object"
+                msg = ("Protected attribute(s) must be numpy array or"
+                       " similar pandas object")
                 raise ValidationError(msg)
             data_shape = prt_at.shape
             if len(data_shape) > 1 and data_shape[1] > 1:
-                msg = "This library is not yet compatible with groups of" +\
-                      " protected attributes."
+                msg = ("This library is not yet compatible with groups of"
+                       " protected attributes.")
                 raise ValidationError(msg)
             if prt_at.nunique() < 2:
                 msg = "Single label found in protected attribute (2 expected)."
                 raise ValidationError(msg)
             elif prt_at.nunique() > 2:
-                msg = "Multiple labels found in protected attribute (2 expected)."
+                msg = ("Multiple labels found in protected attribute"
+                       "(2 expected).")
                 raise ValidationError(msg)
         ## Validate Models
         # Ensure models appear as dict
         if not is_dictlike(self.models):
             if not isinstance(self.models, array_types):
-                msg = "Models must be dict or list-like group of trained," + \
-                      " scikit-like models"
+                msg = ("Models must be dict or list-like group of trained,"
+                       " scikit-like models")
                 raise ValidationError(msg)
             self.models = {f'model_{i}': m for i, m in enumerate(self.models)}
             print("Since no model names were passed, the following names have",

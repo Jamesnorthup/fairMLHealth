@@ -141,7 +141,7 @@ def print_feature_table(df):
         Args:
             df (pandas df): dataframe containing MIMIC data for the tutorial
     '''
-    print(f"\n This data subset has {df.shape[0]} total observations" +
+    print(f"\n This data subset has {df.shape[0]} total observations"
           f" and {df.shape[1]-2} input features \n")
     feat_df = pd.DataFrame({'feature': df.columns.tolist()}
                ).query('feature not in ["ADMIT_ID", "length_of_stay"]')
