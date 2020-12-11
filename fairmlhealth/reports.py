@@ -5,9 +5,6 @@ Tools producing reports of fairness, bias, or model performance measures
 Contributors:
     camagallen <christine.allen@kensci.com>
 """
-
-
-from abc import ABC
 import aif360.sklearn.metrics as aif_mtrc
 import fairlearn.metrics as fl_mtrc
 from IPython.display import HTML
@@ -19,6 +16,7 @@ import warnings
 
 # Tutorial Libraries
 from . import tutorial_helpers as helper
+
 
 # Temporarily hide pandas SettingWithCopy warning
 warnings.filterwarnings('ignore', module='pandas')
@@ -43,8 +41,8 @@ def get_report_labels(pred_type: str = "binary"):
     if pred_type not in valid_pred_types:
         raise ValueError(f"pred_type must be one of {valid_pred_types}")
     c_note = "" if pred_type == "binary" else " (Weighted Avg)"
-    report_labels = {'if_label': "Individual Fairness",
-                     'gf_label': "Group Fairness",
+    report_labels = {'gf_label': "Group Fairness",
+                     'if_label': "Individual Fairness",
                      'mp_label': f"Model Performance{c_note}",
                      'dt_label': "Data Metrics"
                      }
@@ -106,10 +104,9 @@ def __format_fairtest_input(X, prtc_attr, y_true, y_pred, y_prob=None,
     # Ensure that protected attributes are integer-valued
     pa_cols = prtc_attr.columns.tolist()
     for c in pa_cols:
-        binary = (set(prtc_attr[c].astype(int)) == set(prtc_attr[c]))
-        boolean = (prtc_attr[c].dtype == bool)
+        binary_boolean = prtc_attr[c].isin([0, 1, False, True]).all()
         two_valued = (set(prtc_attr[c].astype(int)) == {0, 1})
-        if not two_valued and (binary or boolean):
+        if not two_valued and binary_boolean:
             raise ValueError(
                     "prtc_attr must be binary or boolean and heterogeneous")
         prtc_attr.loc[:, c] = prtc_attr[c].astype(int)
@@ -330,7 +327,7 @@ def __validate_report_inputs(X, prtc_attr, y_true, y_pred, y_prob=None,
 
 
 def classification_fairness(X, prtc_attr, y_true, y_pred, y_prob=None,
-                            priv_grp=1, sig_dec=4):
+                            priv_grp=1, sig_dec=4, **kwargs):
     """ Returns a pandas dataframe containing fairness measures for the model
         results
 
@@ -352,34 +349,38 @@ def classification_fairness(X, prtc_attr, y_true, y_pred, y_prob=None,
     X, prtc_attr, y_true, y_pred, y_prob = \
         __format_fairtest_input(X, prtc_attr, y_true, y_pred, y_prob, priv_grp)
 
-    # Generate dict of group fairness measures, if applicable
+    # Temporarily prevent processing for more than 2 classes
+    # ToDo: enable multiclass
     n_class = y_true.append(y_pred).iloc[:, 0].nunique()
-    if n_class == 2:
-        gf_vals = \
-            __binary_group_fairness_measures(X, prtc_attr, y_true, y_pred,
-                                             y_prob, priv_grp)
-    else:
+    if n_class != 2:
         raise ValueError(
             "Reporter cannot yet process multiclass classification models")
-    #
-    if_vals = __individual_fairness_measures(X, prtc_attr, y_true, y_pred)
-    mp_vals = __classification_performance_measures(y_true, y_pred)
-    dt_vals = __data_metrics(y_true, priv_grp)
-
-    # Convert scores to a formatted dataframe and return
     if n_class == 2:
         labels = get_report_labels()
     else:
         labels = get_report_labels("multiclass")
-    measures = {labels['gf_label']: gf_vals,
-                labels['if_label']: if_vals,
-                labels['mp_label']: mp_vals,
-                labels['dt_label']: dt_vals
-                }
-    df = pd.DataFrame.from_dict(measures, orient="index").stack().to_frame()
+    gfl, ifl, mpl, dtl = labels.values()
+    # Generate a dictionary of measure values to be converted t a dataframe
+    mv_dict = {}
+    mv_dict[gfl] = \
+        __binary_group_fairness_measures(X, prtc_attr, y_true, y_pred,
+                                         y_prob, priv_grp)
+    mv_dict[ifl] = __individual_fairness_measures(X, prtc_attr, y_true, y_pred)
+    mv_dict[dtl] = __data_metrics(y_true, priv_grp)
+    if not kwargs.pop('skip_performance', False):
+        mv_dict[mpl] = __classification_performance_measures(y_true, y_pred)
+    # Convert scores to a formatted dataframe and return
+    df = pd.DataFrame.from_dict(mv_dict, orient="index").stack().to_frame()
     df = pd.DataFrame(df[0].values.tolist(), index=df.index)
     df.columns = ['Value']
     df.loc[:, 'Value'] = df['Value'].astype(float).round(sig_dec)
+    # Fix the order in which the metrics appear
+    metric_order ={gfl: 0, ifl: 1, mpl: 2, dtl: 3}
+    df.reset_index(inplace=True)
+    df['sortorder'] = df['level_0'].map(metric_order)
+    df = df.sort_values('sortorder').drop('sortorder', axis=1)
+    df.set_index(['level_0', 'level_1'], inplace=True)
+    df.rename_axis(('Metric', 'Measure'), inplace=True)
     return df
 
 
@@ -539,7 +540,9 @@ def regression_performance(y_true, y_pred):
                           ).rename(columns={0: 'Score'})
     return report
 
+
 '''
+To File Before PR
 '''
 def sensitivity(y_true, y_pred):
     rprt = binary_prediction_success(y_true, y_pred)
@@ -550,9 +553,20 @@ def false_alarm_rate(y_true, y_pred):
     return rprt['FP']/(rprt['FP'] + rprt['TN'])
 
 def specificity(y_true, y_pred):
-    prt = binary_prediction_success(y_true, y_pred)
+    rprt = binary_prediction_success(y_true, y_pred)
     return rprt['TN']/(rprt['FP'] + rprt['TN'])
 
 def miss_rate(y_true, y_pred):
     rprt = binary_prediction_success(y_true, y_pred)
     return rprt['FN']/(rprt['FN'] + rprt['TP'])
+
+# Feature that generates a RESULT1 table
+'''
+Generate a table of fairness metrics and stratified performance metrics for
+    each specified feature
+
+Requirements:
+- Each feature must be discrete to run stratified analysis, and must be binary
+to run the fairness assessment
+-
+'''
