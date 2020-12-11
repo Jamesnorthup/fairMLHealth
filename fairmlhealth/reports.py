@@ -544,21 +544,26 @@ def regression_performance(y_true, y_pred):
 '''
 To File Before PR
 '''
+
 def sensitivity(y_true, y_pred):
     rprt = binary_prediction_success(y_true, y_pred)
     return rprt['TP']/(rprt['FN'] + rprt['TP'])
+
 
 def false_alarm_rate(y_true, y_pred):
     rprt = binary_prediction_success(y_true, y_pred)
     return rprt['FP']/(rprt['FP'] + rprt['TN'])
 
+
 def specificity(y_true, y_pred):
     rprt = binary_prediction_success(y_true, y_pred)
     return rprt['TN']/(rprt['FP'] + rprt['TN'])
 
+
 def miss_rate(y_true, y_pred):
     rprt = binary_prediction_success(y_true, y_pred)
     return rprt['FN']/(rprt['FN'] + rprt['TP'])
+
 
 # Feature that generates a RESULT1 table
 '''

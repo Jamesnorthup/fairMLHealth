@@ -15,11 +15,6 @@ import numpy as np
 import os
 import pandas as pd
 
-# Metric libraries
-from aif360.sklearn.metrics import *
-from sklearn.metrics import (
-    balanced_accuracy_score, roc_auc_score, accuracy_score, precision_score)
-
 # Tutorial Libraries
 from . import format_mimic_data
 

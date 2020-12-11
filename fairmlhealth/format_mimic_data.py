@@ -14,7 +14,6 @@ import io
 import os
 import pandas as pd
 import requests
-from sklearn import preprocessing
 
 
 def cb_round(series, base=5, sig_dec=0):
