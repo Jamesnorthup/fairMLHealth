@@ -34,6 +34,7 @@ Installing from a local copy of the repo:
 The primary feature of this library is the model comparison tool. The current version supports assessment of binary prediction models through use of the compare_measures function.
 
 ```python
+from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import BernoulliNB
 from sklearn.tree import DecisionTreeClassifier
 from fairmlhealth import model_comparison as fhmc
